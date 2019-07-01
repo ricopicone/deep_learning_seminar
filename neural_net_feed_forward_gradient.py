@@ -21,6 +21,7 @@ class neural_net_feed_forward_gradient():
     self.n_test_images = np.shape(self.test_images)[0]
     self.n_pixels = np.shape(self.train_images)[1]
     self.n_batches = int(np.floor(self.n_train_images/self.batch_size))
+    self.n_batches_test = int(np.floor(self.n_test_images/self.batch_size))
     # initialize
     self.W = 1e-7*( # weights, array n_pixels x n_classes
       np.random.random([self.n_pixels,self.n_classes]) - .5
@@ -42,15 +43,32 @@ class neural_net_feed_forward_gradient():
       )
       fp = self.forward_pass(input_array,batch_number)
       bp = self.backward_pass(input_array,batch_number,fp)
-      print(bp['delta_b'])
+      # print(bp['delta_b'])
   def test(self):
-    return
+    our_estimates = np.empty([self.n_test_images])
+    for batch_number in range(0,self.n_batches_test):
+      indices = batch_number*self.batch_size + \
+        np.arange(0,self.batch_size)
+      input_array = np.take( # batch_size x n_pixels
+        self.train_images,
+        indices,
+        axis=0
+      )
+      fp = self.forward_pass(input_array,batch_number)
+      our_estimates[indices] = fp['p_all'].argmax(axis=1)
+    test_pass_fail_rate = self.test_pass_fail_rate(our_estimates)
+    return test_pass_fail_rate
+  def test_pass_fail_rate(self,our_estimates):
+    test = 1*(our_estimates == self.test_answers) # 1* casts to int
+    pass_fail_rate = test.sum()/test.size
+    return pass_fail_rate
   def train(self):
     for i in range(0,10):
       # self.randomize_images() # not sure if we should
       self.train_once()
-      self.test()
-  def forward_pass(self,input_array,batch_number):
+      test_pass_fail_rate = self.test()
+      print(f'accuracy for pass {i:d}: {test_pass_fail_rate:.1%}')
+  def forward_pass(self,input_array,batch_number,is_test=False):
     fp = dict()
     logits = self.logitser(input_array) # batch_size x n_classes
     fp['train_answers'] = np.take( # correct answers ... batch_size x 1
